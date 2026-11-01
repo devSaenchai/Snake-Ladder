@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SandL - Snake & Ladder Kingdom</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      touch-action: manipulation;
+    }
+    
+    /* 3D Animated Dice Styles */
+    .dice-container {
+      perspective: 600px;
+    }
+    .dice {
+      width: 52px;
+      height: 52px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+    }
+    .dice-face {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(145deg, #ffffff, #f1f5f9);
+      border: 2px solid #cbd5e1;
+      border-radius: 12px;
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.06), 0 4px 10px rgba(0,0,0,0.1);
+      display: grid;
+      grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    .dot {
+      background: #1e293b;
+      border-radius: 50%;
+      align-self: center;
+      justify-self: center;
+      width: 8px;
+      height: 8px;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+    }
+    .dot.red { background: #ef4444; }
+
+    /* Dice Face Rotations */
+    .face-1 { transform: rotateY(0deg) translateZ(26px); }
+    .face-6 { transform: rotateY(180deg) translateZ(26px); }
+    .face-2 { transform: rotateY(-90deg) translateZ(26px); }
+    .face-5 { transform: rotateY(90deg) translateZ(26px); }
+    .face-3 { transform: rotateX(90deg) translateZ(26px); }
+    .face-4 { transform: rotateX(-90deg) translateZ(26px); }
+
+    .show-1 { transform: rotateX(0deg) rotateY(0deg); }
+    .show-2 { transform: rotateX(0deg) rotateY(90deg); }
+    .show-3 { transform: rotateX(-90deg) rotateY(0deg); }
+    .show-4 { transform: rotateX(90deg) rotateY(0deg); }
+    .show-5 { transform: rotateX(0deg) rotateY(-90deg); }
+    .show-6 { transform: rotateX(180deg) rotateY(0deg); }
+  </style>
+</head>
+<body class="bg-slate-950 min-h-screen text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="w-full max-w-xl mx-auto px-4 pt-2 pb-1">
+    <div class="bg-slate-900 rounded-2xl p-2.5 border border-slate-800 shadow-xl flex items-center justify-between">
+      
+      <!-- Top-Left Game Icon & Title (Click to Start / Setup) -->
+      <button id="headerResetBtn" title="Click to Start / Setup Game" class="flex items-center gap-2.5 text-left group hover:bg-slate-800/80 p-1.5 rounded-xl transition">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+          <i class="fa-solid fa-gamepad text-base"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-slate-100 text-sm leading-tight group-hover:text-indigo-300 transition-colors">
+            SandL
+          </h1>
+          <p class="text-[10px] text-slate-400">Tap to start / setup</p>
+        </div>
+      </button>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="soundToggleBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition border border-slate-700" title="Toggle Sound">
+          <i class="fa-solid fa-volume-high text-sm"></i>
+        </button>
+        <button id="rulesBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition border border-slate-700" title="Game Rules">
+          <i class="fa-solid fa-circle-info text-sm"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Game Container -->
+  <main class="w-full max-w-xl mx-auto px-4 py-1 flex-grow flex flex-col justify-center items-center gap-2.5">
+    
+    <!-- Centered Canvas Game Board -->
+    <div class="w-full aspect-square max-w-[480px] mx-auto bg-slate-900 rounded-3xl p-2 sm:p-2.5 shadow-2xl border border-slate-800 flex items-center justify-center overflow-hidden">
+      <canvas id="boardCanvas" class="w-full h-full rounded-2xl block"></canvas>
+    </div>
+
+    <!-- Player Info Cards: 2 Columns x 2 Rows -->
+    <div id="playerStatsGrid" class="w-full grid grid-cols-2 gap-2">
+      <!-- Generated dynamically by JavaScript -->
+    </div>
+
+    <!-- Dice Controls & Turn Bar -->
+    <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between">
+      <div class="flex items-center gap-2.5 overflow-hidden">
+        <div id="turnIndicatorBadge" class="w-3.5 h-3.5 rounded-full bg-indigo-500 animate-pulse shrink-0"></div>
+        <div class="truncate">
+          <div id="currentTurnName" class="text-xs font-bold text-slate-100 truncate">Player 1's Turn</div>
+          <div id="turnStatusText" class="text-[11px] text-slate-400 truncate">Roll the dice to move</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5 shrink-0">
+        <!-- 3D Dice -->
+        <div class="dice-container cursor-pointer" id="diceContainer">
+          <div class="dice show-1" id="dice3d">
+            <!-- Face 1 -->
+            <div class="dice-face face-1">
+              <div></div><div></div><div></div>
+              <div></div><div class="dot red"></div><div></div>
+              <div></div><div></div><div></div>
+            </div>
+            <!-- Face 2 -->
+            <div class="dice-face face-2">
+              <div class="dot"></div><div></div><div></div>
+              <div></div><div></div><div></div>
+              <div></div><div></div><div class="dot"></div>
+            </div>
+            <!-- Face 3 -->
+            <div class="dice-face face-3">
+              <div class="dot"></div><div></div><div></div>
+              <div></div><div class="dot"></div><div></div>
+              <div></div><div></div><div class="dot"></div>
+            </div>
+            <!-- Face 4 -->
+            <div class="dice-face face-4">
+              <div class="dot"></div><div></div><div class="dot"></div>
+              <div></div><div></div><div></div>
+              <div class="dot"></div><div></div><div class="dot"></div>
+            </div>
+            <!-- Face 5 -->
+            <div class="dice-face face-5">
+              <div class="dot"></div><div></div><div class="dot"></div>
+              <div></div><div class="dot"></div><div></div>
+              <div class="dot"></div><div></div><div class="dot"></div>
+            </div>
+            <!-- Face 6 -->
+            <div class="dice-face face-6">
+              <div class="dot"></div><div></div><div class="dot"></div>
+              <div class="dot"></div><div></div><div class="dot"></div>
+              <div class="dot"></div><div></div><div class="dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Roll Button -->
+        <button id="rollDiceBtn" class="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-50 disabled:pointer-events-none text-sm">
+          <i class="fa-solid fa-dice"></i>
+          <span>ROLL</span>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal: Start / Setup Game & Online Rooms -->
+  <div id="setupModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-800 relative">
+      
+      <!-- Close Modal Button -->
+      <button id="closeSetupModalBtn" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 flex items-center justify-center transition">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="text-center mb-5">
+        <div class="w-14 h-14 bg-indigo-950 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-inner border border-indigo-800/40">
+          <i class="fa-solid fa-gamepad text-2xl"></i>
+        </div>
+        <h2 class="text-2xl font-extrabold text-slate-100">SandL Kingdom</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Play vs AI, Locally, or Online with Friends</p>
+      </div>
+
+      <!-- Game Mode Selection Tabs -->
+      <div class="grid grid-cols-3 gap-1.5 mb-4">
+        <button id="modeAiBtn" class="tab-btn p-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-950/50 text-indigo-300 font-bold text-xs flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-robot"></i> vs AI
+        </button>
+        <button id="modeLocalBtn" class="tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-users"></i> Local
+        </button>
+        <button id="modeOnlineBtn" class="tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-globe"></i> Online
+        </button>
+      </div>
+
+      <!-- AI & Local Setup View -->
+      <div id="localSetupContainer" class="space-y-3.5">
+        <div id="localPlayerCountWrapper">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Number of Players</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button class="count-btn py-2 rounded-xl border border-slate-800 bg-slate-950 font-bold text-slate-300 text-xs hover:border-indigo-500" data-count="2">2 Players</button>
+            <button class="count-btn py-2 rounded-xl border border-slate-800 bg-slate-950 font-bold text-slate-300 text-xs hover:border-indigo-500" data-count="3">3 Players</button>
+            <button class="count-btn py-2 rounded-xl border-2 border-indigo-500 bg-indigo-950/50 font-bold text-indigo-300 text-xs" data-count="4">4 Players</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Customize Players</label>
+          <div id="playerInputsList" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+        </div>
+
+        <button id="startGameBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/30 text-center transition text-sm">
+          Start Game
+        </button>
+      </div>
+
+      <!-- Online Multiplayer Setup View -->
+      <div id="onlineSetupContainer" class="space-y-3.5 hidden">
+        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-3">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Your Nickname</label>
+            <input type="text" id="onlinePlayerName" value="Player 1" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-indigo-500">
+          </div>
+          <div class="pt-1 flex gap-2">
+            <button id="createRoomBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition">
+              <i class="fa-solid fa-plus mr-1"></i> Create Room
+            </button>
+          </div>
+        </div>
+
+        <div class="text-center text-xs text-slate-500 font-bold">OR JOIN EXISTING ROOM</div>
+
+        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Room Code</label>
+            <input type="text" id="joinRoomCodeInput" placeholder="e.g. A4K9" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 font-mono uppercase font-bold tracking-widest focus:outline-none focus:border-indigo-500">
+          </div>
+          <button id="joinRoomBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition">
+            <i class="fa-solid fa-right-to-bracket mr-1"></i> Join Room
+          </button>
+        </div>
+
+        <div id="roomStatusDisplay" class="text-center text-xs text-indigo-400 font-bold h-6"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: Rules -->
+  <div id="rulesModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-800 relative text-slate-200">
+      <button id="closeRulesBtn" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <h3 class="text-xl font-bold text-slate-100 mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-book-open text-indigo-400"></i> How to Play
+      </h3>
+      <ul class="text-xs text-slate-300 space-y-2.5 list-disc pl-4 leading-relaxed">
+        <li>Players take turns rolling a standard 6-sided die.</li>
+        <li>Pawns move automatically according to the roll value.</li>
+        <li>Land on the bottom of a <strong>Ladder</strong> to climb up.</li>
+        <li>Land on the head of a <strong>Snake</strong> to slide down.</li>
+        <li>Rolling a <strong>6</strong> awards an extra bonus turn!</li>
+        <li>First player to reach exactly tile <strong>100</strong> wins!</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Modal: Victory Celebration -->
+  <div id="victoryModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center border border-slate-800 animate-in zoom-in duration-300">
+      <div class="w-20 h-20 bg-amber-950 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner text-4xl border border-amber-700/50">
+        <i class="fa-solid fa-trophy"></i>
+      </div>
+      <h2 id="winnerTitle" class="text-2xl font-black text-slate-100">Player 1 Wins!</h2>
+      <p class="text-xs text-slate-400 mt-1 mb-6">Congratulations! You reached tile 100 first!</p>
+      <button id="playAgainBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 transition">
+        Play Again / Setup
+      </button>
+    </div>
+  </div>
+
+  <!-- Firebase Modular SDK & Game Script -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-analytics.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration for SandL
+    const firebaseConfig = {
+      apiKey: "AIzaSyBhn3zLK6Jmwm7Uf6zo9fHpvOV3WR4Eov4",
+      authDomain: "snake-83ef2.firebaseapp.com",
+      projectId: "snake-83ef2",
+      storageBucket: "snake-83ef2.firebasestorage.app",
+      messagingSenderId: "1081821690914",
+      appId: "1:1081821690914:web:544a2276637a0c5bf81e7b",
+      measurementId: "G-BDWMQQP8DX"
+    };
+
+    // Initialize Firebase & Firestore
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+
+    // Audio Synthesizer Engine (Web Audio API)
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+      playRoll() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+      playStep() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playLadder() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(880, this.ctx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.4);
+      }
+      playSnake() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(500, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(120, this.ctx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.5);
+      }
+      playWin() {
+        if (!this.enabled) return;
+        this.init();
+        const notes = [261.63, 329.63, 392.00, 523.25];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.12);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime + idx * 0.12);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.12 + 0.3);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.12);
+          osc.stop(this.ctx.currentTime + idx * 0.12 + 0.3);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // Medium Difficulty Board Configuration (Snakes & Ladders)
+    const LADDERS = [
+      { start: 4, end: 25 },
+      { start: 13, end: 46 },
+      { start: 33, end: 49 },
+      { start: 42, end: 63 },
+      { start: 50, end: 69 },
+      { start: 62, end: 81 },
+      { start: 74, end: 92 }
+    ];
+
+    const SNAKES = [
+      { start: 27, end: 5 },
+      { start: 40, end: 18 },
+      { start: 43, end: 22 },
+      { start: 54, end: 31 },
+      { start: 66, end: 45 },
+      { start: 76, end: 58 },
+      { start: 89, end: 52 },
+      { start: 98, end: 79 }
+    ];
+
+    const DEFAULT_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b'];
+
+    // Game State Variables
+    let players = [];
+    let currentTurnIndex = 0;
+    let isRolling = false;
+    let isMoving = false;
+    let mode = 'ai'; // 'ai', 'local', or 'online'
+    let numPlayers = 2;
+    let currentRoomCode = null;
+    let myPlayerId = 0;
+    let unsubscribeRoom = null;
+
+    // DOM Elements
+    const canvas = document.getElementById('boardCanvas');
+    const ctx = canvas.getContext('2d');
+    const setupModal = document.getElementById('setupModal');
+    const closeSetupModalBtn = document.getElementById('closeSetupModalBtn');
+    const headerResetBtn = document.getElementById('headerResetBtn');
+    const playerStatsGrid = document.getElementById('playerStatsGrid');
+    const turnIndicatorBadge = document.getElementById('turnIndicatorBadge');
+    const currentTurnName = document.getElementById('currentTurnName');
+    const turnStatusText = document.getElementById('turnStatusText');
+    const rollDiceBtn = document.getElementById('rollDiceBtn');
+    const dice3d = document.getElementById('dice3d');
+    const diceContainer = document.getElementById('diceContainer');
+    
+    const modeAiBtn = document.getElementById('modeAiBtn');
+    const modeLocalBtn = document.getElementById('modeLocalBtn');
+    const modeOnlineBtn = document.getElementById('modeOnlineBtn');
+    const localSetupContainer = document.getElementById('localSetupContainer');
+    const onlineSetupContainer = document.getElementById('onlineSetupContainer');
+    const localPlayerCountWrapper = document.getElementById('localPlayerCountWrapper');
+    const playerInputsList = document.getElementById('playerInputsList');
+    const startGameBtn = document.getElementById('startGameBtn');
+    
+    const onlinePlayerNameInput = document.getElementById('onlinePlayerName');
+    const createRoomBtn = document.getElementById('createRoomBtn');
+    const joinRoomCodeInput = document.getElementById('joinRoomCodeInput');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const roomStatusDisplay = document.getElementById('roomStatusDisplay');
+
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const rulesBtn = document.getElementById('rulesBtn');
+    const rulesModal = document.getElementById('rulesModal');
+    const closeRulesBtn = document.getElementById('closeRulesBtn');
+    const victoryModal = document.getElementById('victoryModal');
+    const winnerTitle = document.getElementById('winnerTitle');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+
+    // High DPI Canvas Scaling
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+      renderBoard();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Get Tile Center Coordinates (1 to 100)
+    function getTileCenter(tileNum) {
+      const rect = canvas.getBoundingClientRect();
+      const size = rect.width;
+      const cellSize = size / 10;
+      
+      const index = tileNum - 1;
+      const row = Math.floor(index / 10);
+      let col = index % 10;
+      
+      if (row % 2 === 1) {
+        col = 9 - col;
+      }
+      
+      const x = col * cellSize + cellSize / 2;
+      const y = size - (row * cellSize + cellSize / 2);
+      
+      return { x, y, cellSize };
+    }
+
+    // Render Board Graphics
+    function renderBoard() {
+      const rect = canvas.getBoundingClientRect();
+      const size = rect.width;
+      if (!size) return;
+      const cellSize = size / 10;
+
+      ctx.clearRect(0, 0, size, size);
+
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          const x = c * cellSize;
+          const y = r * cellSize;
+          
+          const isEven = (r + c) % 2 === 0;
+          ctx.fillStyle = isEven ? '#f1f5f9' : '#e2e8f0';
+          ctx.fillRect(x, y, cellSize, cellSize);
+
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellSize, cellSize);
+
+          const rowFromBottom = 9 - r;
+          let colIndex = c;
+          if (rowFromBottom % 2 === 1) {
+            colIndex = 9 - c;
+          }
+          const tileNum = rowFromBottom * 10 + colIndex + 1;
+
+          ctx.fillStyle = '#64748b';
+          ctx.font = `bold ${Math.max(10, cellSize * 0.22)}px Outfit`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(tileNum.toString(), x + cellSize * 0.08, y + cellSize * 0.08);
+
+          if (tileNum === 1) {
+            ctx.fillStyle = '#10b981';
+            ctx.font = `bold ${Math.max(9, cellSize * 0.18)}px Outfit`;
+            ctx.fillText('START', x + cellSize * 0.08, y + cellSize * 0.7);
+          } else if (tileNum === 100) {
+            ctx.fillStyle = '#ef4444';
+            ctx.font = `bold ${Math.max(9, cellSize * 0.18)}px Outfit`;
+            ctx.fillText('WIN 🏆', x + cellSize * 0.08, y + cellSize * 0.7);
+          }
+        }
+      }
+
+      // Ladders
+      LADDERS.forEach(ladder => {
+        const p1 = getTileCenter(ladder.start);
+        const p2 = getTileCenter(ladder.end);
+        
+        ctx.save();
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const angle = Math.atan2(dy, dx);
+        const dist = Math.hypot(dx, dy);
+
+        ctx.translate(p1.x, p1.y);
+        ctx.rotate(angle);
+
+        const width = cellSize * 0.35;
+        ctx.shadowColor = 'rgba(0,0,0,0.15)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetX = 3;
+        ctx.shadowOffsetY = 4;
+
+        ctx.strokeStyle = '#854d0e';
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(0, -width / 2); ctx.lineTo(dist, -width / 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, width / 2); ctx.lineTo(dist, width / 2); ctx.stroke();
+
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0, -width / 2); ctx.lineTo(dist, -width / 2);
+        ctx.moveTo(0, width / 2); ctx.lineTo(dist, width / 2); ctx.stroke();
+
+        const rungCount = Math.floor(dist / (cellSize * 0.28));
+        ctx.strokeStyle = '#a16207';
+        ctx.lineWidth = 4;
+        for (let i = 1; i <= rungCount; i++) {
+          const rx = (dist / (rungCount + 1)) * i;
+          ctx.beginPath(); ctx.moveTo(rx, -width / 2); ctx.lineTo(rx, width / 2); ctx.stroke();
+        }
+        ctx.restore();
+      });
+
+      // Snakes
+      SNAKES.forEach(snake => {
+        const head = getTileCenter(snake.start);
+        const tail = getTileCenter(snake.end);
+
+        ctx.save();
+        const dx = tail.x - head.x;
+        const dy = tail.y - head.y;
+        const cp1x = head.x + dy * 0.25;
+        const cp1y = head.y - dx * 0.25;
+        const cp2x = tail.x - dy * 0.25;
+        const cp2y = tail.y + dx * 0.25;
+
+        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 4;
+
+        ctx.beginPath();
+        ctx.moveTo(head.x, head.y);
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, tail.x, tail.y);
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = cellSize * 0.22;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = cellSize * 0.08;
+        ctx.setLineDash([8, 8]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const angle = Math.atan2(cp1y - head.y, cp1x - head.x);
+        ctx.translate(head.x, head.y);
+        ctx.rotate(angle);
+
+        ctx.strokeStyle = '#b91c1c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(-cellSize * 0.25, 0); ctx.lineTo(-cellSize * 0.3, -4);
+        ctx.moveTo(-cellSize * 0.25, 0); ctx.lineTo(-cellSize * 0.3, 4);
+        ctx.stroke();
+
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, cellSize * 0.16, cellSize * 0.13, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cellSize * 0.05, -cellSize * 0.06, 3.5, 0, Math.PI * 2);
+        ctx.arc(cellSize * 0.05, cellSize * 0.06, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(cellSize * 0.06, -cellSize * 0.06, 1.8, 0, Math.PI * 2);
+        ctx.arc(cellSize * 0.06, cellSize * 0.06, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      });
+
+      // Pawns
+      const tileGroups = {};
+      players.forEach(p => {
+        if (!tileGroups[p.position]) tileGroups[p.position] = [];
+        tileGroups[p.position].push(p);
+      });
+
+      Object.keys(tileGroups).forEach(tileNum => {
+        const group = tileGroups[tileNum];
+        const center = getTileCenter(parseInt(tileNum));
+        const count = group.length;
+
+        group.forEach((p, idx) => {
+          let offsetX = 0;
+          let offsetY = 0;
+
+          if (count > 1) {
+            const offsetDist = center.cellSize * 0.16;
+            const angle = (idx / count) * Math.PI * 2;
+            offsetX = Math.cos(angle) * offsetDist;
+            offsetY = Math.sin(angle) * offsetDist;
+          }
+
+          const px = p.animatedX !== undefined ? p.animatedX : center.x + offsetX;
+          const py = p.animatedY !== undefined ? p.animatedY : center.y + offsetY;
+          const radius = center.cellSize * 0.18;
+
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.3)';
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetY = 3;
+
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.shadowColor = 'transparent';
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          if (players[currentTurnIndex] && players[currentTurnIndex].id === p.id) {
+            ctx.strokeStyle = '#e0e7ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px, py, radius + 4, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${radius * 0.9}px Outfit`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText((p.id + 1).toString(), px, py);
+
+          ctx.restore();
+        });
+      });
+    }
+
+    // Update Player Cards UI
+    function updatePlayerStatsUI() {
+      playerStatsGrid.innerHTML = '';
+      players.forEach((p, idx) => {
+        const isCurrent = idx === currentTurnIndex;
+        const card = document.createElement('div');
+        
+        card.className = `rounded-xl p-2.5 transition-all flex items-center justify-between border ${
+          isCurrent 
+            ? 'bg-slate-900 border-indigo-500 shadow-md ring-2 ring-indigo-500/30' 
+            : 'bg-slate-900/60 border-slate-800 opacity-75'
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2 overflow-hidden">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm" style="background-color: ${p.color}">
+              ${p.isAi ? '<i class="fa-solid fa-robot"></i>' : p.id + 1}
+            </div>
+            <div class="truncate">
+              <div class="text-xs font-bold text-slate-100 truncate">${p.name}</div>
+              <div class="text-[10px] text-slate-400 font-semibold">Tile ${p.position}</div>
+            </div>
+          </div>
+          ${isCurrent ? '<span class="text-[10px] font-bold text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded-full border border-indigo-800/50">TURN</span>' : ''}
+        `;
+        playerStatsGrid.appendChild(card);
+      });
+
+      const currPlayer = players[currentTurnIndex];
+      if (currPlayer) {
+        turnIndicatorBadge.style.backgroundColor = currPlayer.color;
+        currentTurnName.textContent = `${currPlayer.name}'s Turn`;
+      }
+
+      if (mode === 'online') {
+        if (currPlayer && currPlayer.id === myPlayerId && !isMoving && !isRolling) {
+          rollDiceBtn.disabled = false;
+          turnStatusText.textContent = `Your Turn! Roll the dice.`;
+        } else {
+          rollDiceBtn.disabled = true;
+          turnStatusText.textContent = currPlayer ? `Waiting for ${currPlayer.name}...` : '';
+        }
+      }
+    }
+
+    // Render Setup Inputs
+    function renderPlayerInputs() {
+      playerInputsList.innerHTML = '';
+      const count = mode === 'ai' ? 2 : numPlayers;
+
+      for (let i = 0; i < count; i++) {
+        const isAi = mode === 'ai' && i === 1;
+        const defaultName = isAi ? 'Smart Bot' : `Player ${i + 1}`;
+        const defaultColor = DEFAULT_COLORS[i % DEFAULT_COLORS.length];
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800';
+        row.innerHTML = `
+          <input type="color" value="${defaultColor}" class="player-color-input w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent" data-index="${i}">
+          <input type="text" value="${defaultName}" ${isAi ? 'readonly' : ''} class="player-name-input flex-grow bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-bold focus:outline-none focus:border-indigo-500" data-index="${i}">
+          ${isAi ? '<span class="text-[10px] font-bold bg-indigo-950 text-indigo-400 border border-indigo-800/50 px-2 py-1 rounded-md"><i class="fa-solid fa-robot"></i> AI</span>' : ''}
+        `;
+        playerInputsList.appendChild(row);
+      }
+    }
+
+    // Initialize Local / AI Game
+    function initGame() {
+      if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+      currentRoomCode = null;
+
+      const nameInputs = document.querySelectorAll('.player-name-input');
+      const colorInputs = document.querySelectorAll('.player-color-input');
+      const count = mode === 'ai' ? 2 : numPlayers;
+
+      players = [];
+      for (let i = 0; i < count; i++) {
+        players.push({
+          id: i,
+          name: nameInputs[i] ? nameInputs[i].value.trim() || `Player ${i + 1}` : (i === 1 && mode === 'ai' ? 'Smart Bot' : `Player ${i + 1}`),
+          color: colorInputs[i] ? colorInputs[i].value : DEFAULT_COLORS[i],
+          position: 1,
+          isAi: mode === 'ai' && i === 1
+        });
+      }
+
+      currentTurnIndex = 0;
+      isRolling = false;
+      isMoving = false;
+      rollDiceBtn.disabled = false;
+      turnStatusText.textContent = 'Roll the dice to move';
+
+      updatePlayerStatsUI();
+      resizeCanvas();
+      setupModal.classList.add('hidden');
+    }
+
+    // Firebase Online Multiplayer Room Handlers
+    function generateRoomCode() {
+      return Math.random().toString(36).substring(2, 6).toUpperCase();
+    }
+
+    async function createOnlineRoom() {
+      const name = onlinePlayerNameInput.value.trim() || "Player 1";
+      const code = generateRoomCode();
+      currentRoomCode = code;
+      myPlayerId = 0;
+
+      const initialRoomState = {
+        players: [
+          { id: 0, name: name, color: DEFAULT_COLORS[0], position: 1, isAi: false }
+        ],
+        currentTurnIndex: 0,
+        diceValue: 1,
+        status: 'waiting'
+      };
+
+      try {
+        await setDoc(doc(db, "rooms", code), initialRoomState);
+        roomStatusDisplay.innerHTML = `Room Created! Code: <strong class="text-emerald-400 text-sm">${code}</strong>. Waiting for players...`;
+        listenToRoom(code);
+      } catch (err) {
+        console.error(err);
+        roomStatusDisplay.textContent = "Error creating room. Check Firestore Rules.";
+      }
+    }
+
+    async function joinOnlineRoom() {
+      const code = joinRoomCodeInput.value.trim().toUpperCase();
+      const name = onlinePlayerNameInput.value.trim() || "Player";
+      if (!code) { alert("Enter a valid room code"); return; }
+
+      const roomRef = doc(db, "rooms", code);
+      const docSnap = await getDoc(roomRef);
+
+      if (!docSnap.exists()) {
+        alert("Room not found!");
+        return;
+      }
+
+      const roomData = docSnap.data();
+      if (roomData.players.length >= 4) {
+        alert("Room is full!");
+        return;
+      }
+
+      const newId = roomData.players.length;
+      myPlayerId = newId;
+      currentRoomCode = code;
+
+      roomData.players.push({
+        id: newId,
+        name: name,
+        color: DEFAULT_COLORS[newId % DEFAULT_COLORS.length],
+        position: 1,
+        isAi: false
+      });
+
+      roomData.status = 'playing';
+
+      await setDoc(roomRef, roomData);
+      roomStatusDisplay.innerHTML = `Joined Room <strong class="text-emerald-400">${code}</strong> successfully!`;
+      listenToRoom(code);
+    }
+
+    function listenToRoom(code) {
+      if (unsubscribeRoom) unsubscribeRoom();
+
+      unsubscribeRoom = onSnapshot(doc(db, "rooms", code), (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        players = data.players;
+        currentTurnIndex = data.currentTurnIndex;
+
+        updatePlayerStatsUI();
+        resizeCanvas();
+
+        if (data.status === 'playing' && setupModal.classList.contains('hidden') === false) {
+          setupModal.classList.add('hidden');
+        }
+
+        if (data.winner) {
+          winnerTitle.textContent = `${data.winner} Wins!`;
+          victoryModal.classList.remove('hidden');
+        }
+      });
+    }
+
+    async function syncOnlineState(extraTurn = false) {
+      if (!currentRoomCode) return;
+      const nextTurn = extraTurn ? currentTurnIndex : (currentTurnIndex + 1) % players.length;
+      const winner = players.find(p => p.position === 100);
+
+      await updateDoc(doc(db, "rooms", currentRoomCode), {
+        players: players,
+        currentTurnIndex: nextTurn,
+        winner: winner ? winner.name : null
+      });
+    }
+
+    // Dice Roll & Movement Engine
+    function rollDice() {
+      if (isRolling || isMoving) return;
+
+      const player = players[currentTurnIndex];
+      isRolling = true;
+      rollDiceBtn.disabled = true;
+      sound.playRoll();
+
+      const rollValue = Math.floor(Math.random() * 6) + 1;
+
+      dice3d.className = `dice show-${rollValue}`;
+      dice3d.style.transform = `rotateX(${Math.random() * 720 + 360}deg) rotateY(${Math.random() * 720 + 360}deg)`;
+
+      setTimeout(() => {
+        dice3d.className = `dice show-${rollValue}`;
+        dice3d.style.transform = '';
+
+        turnStatusText.textContent = `${player.name} rolled a ${rollValue}!`;
+        
+        setTimeout(() => {
+          isRolling = false;
+          movePlayer(player, rollValue);
+        }, 400);
+      }, 800);
+    }
+
+    async function movePlayer(player, steps) {
+      isMoving = true;
+      let currentPos = player.position;
+      const targetPos = currentPos + steps;
+
+      if (targetPos > 100) {
+        turnStatusText.textContent = `Needs exact roll to reach 100!`;
+        await new Promise(r => setTimeout(r, 800));
+        endTurn(steps === 6);
+        return;
+      }
+
+      for (let i = 1; i <= steps; i++) {
+        player.position++;
+        sound.playStep();
+        updatePlayerStatsUI();
+        renderBoard();
+        await new Promise(r => setTimeout(r, 220));
+      }
+
+      const ladder = LADDERS.find(l => l.start === player.position);
+      const snake = SNAKES.find(s => s.start === player.position);
+
+      if (ladder) {
+        turnStatusText.textContent = `Great! ${player.name} climbed a ladder to ${ladder.end}!`;
+        sound.playLadder();
+        await animateDirectJump(player, ladder.end);
+      } else if (snake) {
+        turnStatusText.textContent = `Oh no! ${player.name} got bitten by a snake down to ${snake.end}!`;
+        sound.playSnake();
+        await animateDirectJump(player, snake.end);
+      }
+
+      if (player.position === 100) {
+        sound.playWin();
+        winnerTitle.textContent = `${player.name} Wins!`;
+        victoryModal.classList.remove('hidden');
+        isMoving = false;
+        if (mode === 'online') syncOnlineState(false);
+        return;
+      }
+
+      endTurn(steps === 6);
+    }
+
+    function animateDirectJump(player, targetTile) {
+      return new Promise(resolve => {
+        const startCenter = getTileCenter(player.position);
+        const endCenter = getTileCenter(targetTile);
+        const startTime = performance.now();
+        const duration = 600;
+
+        function animate(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(1, elapsed / duration);
+          const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+          player.animatedX = startCenter.x + (endCenter.x - startCenter.x) * ease;
+          player.animatedY = startCenter.y + (endCenter.y - startCenter.y) * ease;
+
+          renderBoard();
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            delete player.animatedX;
+            delete player.animatedY;
+            player.position = targetTile;
+            updatePlayerStatsUI();
+            renderBoard();
+            resolve();
+          }
+        }
+        requestAnimationFrame(animate);
+      });
+    }
+
+    function endTurn(rolledSix) {
+      isMoving = false;
+
+      if (rolledSix) {
+        turnStatusText.textContent = `${players[currentTurnIndex].name} rolled a 6 & gets an extra turn!`;
+      } else {
+        currentTurnIndex = (currentTurnIndex + 1) % players.length;
+      }
+
+      if (mode === 'online') {
+        syncOnlineState(rolledSix);
+      } else {
+        updatePlayerStatsUI();
+        renderBoard();
+
+        const nextPlayer = players[currentTurnIndex];
+        rollDiceBtn.disabled = false;
+
+        if (nextPlayer.isAi) {
+          rollDiceBtn.disabled = true;
+          turnStatusText.textContent = `${nextPlayer.name} is thinking...`;
+          setTimeout(() => rollDice(), 1000);
+        }
+      }
+    }
+
+    // Event Bindings
+    modeAiBtn.addEventListener('click', () => {
+      mode = 'ai';
+      modeAiBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-950/50 text-indigo-300 font-bold text-xs flex flex-col items-center gap-1 transition';
+      modeLocalBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition';
+      modeOnlineBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition';
+      localPlayerCountWrapper.classList.add('hidden');
+      localSetupContainer.classList.remove('hidden');
+      onlineSetupContainer.classList.add('hidden');
+      renderPlayerInputs();
+    });
+
+    modeLocalBtn.addEventListener('click', () => {
+      mode = 'local';
+      modeLocalBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-950/50 text-indigo-300 font-bold text-xs flex flex-col items-center gap-1 transition';
+      modeAiBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition';
+      modeOnlineBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition';
+      localPlayerCountWrapper.classList.remove('hidden');
+      localSetupContainer.classList.remove('hidden');
+      onlineSetupContainer.classList.add('hidden');
+      renderPlayerInputs();
+    });
+
+    modeOnlineBtn.addEventListener('click', () => {
+      mode = 'online';
+      modeOnlineBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-950/50 text-indigo-300 font-bold text-xs flex flex-col items-center gap-1 transition';
+      modeAiBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition';
+      modeLocalBtn.className = 'tab-btn p-2.5 rounded-xl border-2 border-slate-800 bg-slate-950 text-slate-400 font-bold text-xs flex flex-col items-center gap-1 transition';
+      localSetupContainer.classList.add('hidden');
+      onlineSetupContainer.classList.remove('hidden');
+    });
+
+    document.querySelectorAll('.count-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.count-btn').forEach(b => {
+          b.className = 'count-btn py-2 rounded-xl border border-slate-800 bg-slate-950 font-bold text-slate-300 text-xs hover:border-indigo-500';
+        });
+        e.target.className = 'count-btn py-2 rounded-xl border-2 border-indigo-500 bg-indigo-950/50 font-bold text-indigo-300 text-xs';
+        numPlayers = parseInt(e.target.dataset.count);
+        renderPlayerInputs();
+      });
+    });
+
+    rollDiceBtn.addEventListener('click', rollDice);
+    diceContainer.addEventListener('click', rollDice);
+    headerResetBtn.addEventListener('click', () => setupModal.classList.remove('hidden'));
+    closeSetupModalBtn.addEventListener('click', () => {
+      if (players.length === 0) initGame();
+      else setupModal.classList.add('hidden');
+    });
+
+    startGameBtn.addEventListener('click', initGame);
+    createRoomBtn.addEventListener('click', createOnlineRoom);
+    joinRoomBtn.addEventListener('click', joinOnlineRoom);
+
+    rulesBtn.addEventListener('click', () => rulesModal.classList.remove('hidden'));
+    closeRulesBtn.addEventListener('click', () => rulesModal.classList.add('hidden'));
+    playAgainBtn.addEventListener('click', () => {
+      victoryModal.classList.add('hidden');
+      setupModal.classList.remove('hidden');
+    });
+
+    soundToggleBtn.addEventListener('click', () => {
+      sound.enabled = !sound.enabled;
+      soundToggleBtn.innerHTML = sound.enabled 
+        ? '<i class="fa-solid fa-volume-high text-sm"></i>' 
+        : '<i class="fa-solid fa-volume-xmark text-slate-500 text-sm"></i>';
+    });
+
+    renderPlayerInputs();
+    setTimeout(resizeCanvas, 50);
+  </script>
+</body>
+</html>
