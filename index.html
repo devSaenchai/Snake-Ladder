@@ -776,7 +776,7 @@
         card.innerHTML = `
           <div class="flex items-center gap-2 overflow-hidden">
             <div class="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm" style="background-color: ${p.color}">
-              ${p.isAi ? '<i class="fa-solid fa-robot"></i>' : p.id + 1}
+              ${p.id + 1}
             </div>
             <div class="truncate">
               <div class="text-xs font-bold text-slate-100 truncate">${p.name} ${p.id === myPlayerId && mode === 'online' ? '(You)' : ''}</div>
@@ -802,27 +802,6 @@
           rollDiceBtn.disabled = true;
           turnStatusText.textContent = currPlayer ? `Waiting for ${currPlayer.name}...` : '';
         }
-      }
-    }
-
-    // Render Setup Inputs
-    function renderPlayerInputs() {
-      playerInputsList.innerHTML = '';
-      const count = mode === 'ai' ? 2 : numPlayers;
-
-      for (let i = 0; i < count; i++) {
-        const isAi = mode === 'ai' && i === 1;
-        const defaultName = isAi ? 'Smart Bot' : `Player ${i + 1}`;
-        const defaultColor = DEFAULT_COLORS[i % DEFAULT_COLORS.length];
-
-        const row = document.createElement('div');
-        row.className = 'flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800';
-        row.innerHTML = `
-          <input type="color" value="${defaultColor}" class="player-color-input w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent" data-index="${i}">
-          <input type="text" value="${defaultName}" ${isAi ? 'readonly' : ''} class="player-name-input flex-grow bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-bold focus:outline-none focus:border-indigo-500" data-index="${i}">
-          ${isAi ? '<span class="text-[10px] font-bold bg-indigo-950 text-indigo-400 border border-indigo-800/50 px-2 py-1 rounded-md"><i class="fa-solid fa-robot"></i> AI</span>' : ''}
-        `;
-        playerInputsList.appendChild(row);
       }
     }
 
@@ -1001,11 +980,15 @@
       const nextTurn = extraTurn ? currentTurnIndex : (currentTurnIndex + 1) % players.length;
       const winner = players.find(p => p.position === 100);
 
-      await updateDoc(doc(db, "rooms", currentRoomCode), {
-        players: players,
-        currentTurnIndex: nextTurn,
-        winner: winner ? winner.name : null
-      });
+      try {
+        await updateDoc(doc(db, "rooms", currentRoomCode), {
+          players: players,
+          currentTurnIndex: nextTurn,
+          winner: winner ? winner.name : null
+        });
+      } catch (err) {
+        console.error("Sync error:", err);
+      }
     }
 
     // Dice Roll & Movement Engine
