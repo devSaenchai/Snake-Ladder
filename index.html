@@ -326,16 +326,18 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-analytics.js";
-    import { getDatabase, ref, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
+    import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
 
+    // UPDATED FIREBASE CONFIG WITH NEW PROJECT & REALTIME DATABASE URL
     const firebaseConfig = {
-      apiKey: "AIzaSyBhn3zLK6Jmwm7Uf6zo9fHpvOV3WR4Eov4",
-      authDomain: "snake-83ef2.firebaseapp.com",
-      projectId: "snake-83ef2",
-      storageBucket: "snake-83ef2.firebasestorage.app",
-      messagingSenderId: "1081821690914",
-      appId: "1:1081821690914:web:544a2276637a0c5bf81e7b",
-      measurementId: "G-BDWMQQP8DX"
+      apiKey: "AIzaSyC8KpmMMnEMiEyxxAF_kA47jgxFeSM11L0",
+      authDomain: "sandl-71d05.firebaseapp.com",
+      databaseURL: "https://sandl-71d05-default-rtdb.firebaseio.com",
+      projectId: "sandl-71d05",
+      storageBucket: "sandl-71d05.firebasestorage.app",
+      messagingSenderId: "797875339350",
+      appId: "1:797875339350:web:3a99e2de621f868751fbf7",
+      measurementId: "G-K3LYS0JB8W"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -884,7 +886,7 @@
         listenToRoom(code);
       } catch (err) {
         console.error(err);
-        roomStatusDisplay.textContent = "Error creating room.";
+        roomStatusDisplay.textContent = "Error: " + err.message;
       }
     }
 
