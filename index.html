@@ -322,11 +322,11 @@
     </div>
   </div>
 
-  <!-- Firebase Modular SDK & Game Script -->
+  <!-- Firebase Realtime Database Modular SDK & Game Script -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-analytics.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+    import { getDatabase, ref, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBhn3zLK6Jmwm7Uf6zo9fHpvOV3WR4Eov4",
@@ -340,7 +340,7 @@
 
     const app = initializeApp(firebaseConfig);
     const analytics = getAnalytics(app);
-    const db = getFirestore(app);
+    const db = getDatabase(app);
 
     // Audio Synthesizer Engine (Web Audio API)
     class SoundEngine {
@@ -468,7 +468,7 @@
     let numPlayers = 2;
     let currentRoomCode = null;
     let myPlayerId = 0;
-    let unsubscribeRoom = null;
+    let roomUnsubscribe = null;
 
     // DOM Elements
     const canvas = document.getElementById('boardCanvas');
@@ -828,7 +828,7 @@
 
     // Initialize Local / AI Game
     function initGame() {
-      if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+      if (roomUnsubscribe) { roomUnsubscribe(); roomUnsubscribe = null; }
       currentRoomCode = null;
 
       const nameInputs = document.querySelectorAll('.player-name-input');
@@ -857,7 +857,7 @@
       setupModal.classList.add('hidden');
     }
 
-    // Firebase Online Multiplayer Room Handlers
+    // Firebase Realtime Database Online Multiplayer Handlers
     function generateRoomCode() {
       return Math.random().toString(36).substring(2, 6).toUpperCase();
     }
@@ -870,22 +870,21 @@
 
       const initialRoomState = {
         hostId: 0,
-        players: [
-          { id: 0, name: name, color: DEFAULT_COLORS[0], position: 1, isAi: false }
-        ],
+        players: {
+          0: { id: 0, name: name, color: DEFAULT_COLORS[0], position: 1, isAi: false }
+        },
         currentTurnIndex: 0,
-        diceValue: 1,
         status: 'waiting'
       };
 
       try {
-        await setDoc(doc(db, "rooms", code), initialRoomState);
+        await set(ref(db, 'rooms/' + code), initialRoomState);
         setupModal.classList.add('hidden');
-        openOnlineLobby(code, initialRoomState.players);
+        openOnlineLobby(code, [initialRoomState.players[0]]);
         listenToRoom(code);
       } catch (err) {
         console.error(err);
-        roomStatusDisplay.textContent = "Error creating room. Check Firestore Rules.";
+        roomStatusDisplay.textContent = "Error creating room.";
       }
     }
 
@@ -894,40 +893,46 @@
       const name = onlinePlayerNameInput.value.trim() || "Player";
       if (!code) { alert("Enter a valid room code"); return; }
 
-      const roomRef = doc(db, "rooms", code);
-      const docSnap = await getDoc(roomRef);
+      const roomRef = ref(db, 'rooms/' + code);
+      const snapshot = await get(roomRef);
 
-      if (!docSnap.exists()) {
+      if (!snapshot.exists()) {
         alert("Room not found!");
         return;
       }
 
-      const roomData = docSnap.data();
+      const roomData = snapshot.val();
       if (roomData.status === 'playing') {
         alert("Game already started in this room!");
         return;
       }
-      if (roomData.players.length >= 4) {
+
+      const existingPlayers = roomData.players ? (Array.isArray(roomData.players) ? roomData.players : Object.values(roomData.players)) : [];
+      if (existingPlayers.length >= 4) {
         alert("Room is full!");
         return;
       }
 
-      // CRITICAL FIX: Explicitly lock in guest's player ID based on array length
-      const newId = roomData.players.length;
+      const newId = existingPlayers.length;
       myPlayerId = newId;
       currentRoomCode = code;
 
-      roomData.players.push({
+      const newPlayer = {
         id: newId,
         name: name,
         color: DEFAULT_COLORS[newId % DEFAULT_COLORS.length],
         position: 1,
         isAi: false
+      };
+
+      existingPlayers.push(newPlayer);
+
+      await update(roomRef, {
+        players: existingPlayers
       });
 
-      await setDoc(roomRef, roomData);
       setupModal.classList.add('hidden');
-      openOnlineLobby(code, roomData.players);
+      openOnlineLobby(code, existingPlayers);
       listenToRoom(code);
     }
 
@@ -947,9 +952,10 @@
 
     function renderLobbyPlayers(roomPlayers) {
       lobbyPlayersList.innerHTML = '';
-      lobbyPlayerCount.textContent = roomPlayers.length;
+      const playerListArray = Array.isArray(roomPlayers) ? roomPlayers : Object.values(roomPlayers);
+      lobbyPlayerCount.textContent = playerListArray.length;
 
-      roomPlayers.forEach((p, idx) => {
+      playerListArray.forEach((p) => {
         const item = document.createElement('div');
         item.className = 'flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800';
         item.innerHTML = `
@@ -967,19 +973,21 @@
 
     async function hostStartOnlineGame() {
       if (!currentRoomCode || myPlayerId !== 0) return;
-      await updateDoc(doc(db, "rooms", currentRoomCode), {
+      await update(ref(db, 'rooms/' + currentRoomCode), {
         status: 'playing'
       });
     }
 
     function listenToRoom(code) {
-      if (unsubscribeRoom) unsubscribeRoom();
+      if (roomUnsubscribe) roomUnsubscribe();
 
-      unsubscribeRoom = onSnapshot(doc(db, "rooms", code), (docSnap) => {
-        if (!docSnap.exists()) return;
-        const data = docSnap.data();
-        players = data.players;
-        currentTurnIndex = data.currentTurnIndex;
+      const roomRef = ref(db, 'rooms/' + code);
+      roomUnsubscribe = onValue(roomRef, (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
+        
+        players = data.players ? (Array.isArray(data.players) ? data.players : Object.values(data.players)) : [];
+        currentTurnIndex = data.currentTurnIndex !== undefined ? data.currentTurnIndex : 0;
 
         renderLobbyPlayers(players);
 
@@ -1003,13 +1011,13 @@
       const winner = players.find(p => p.position === 100);
 
       try {
-        await updateDoc(doc(db, "rooms", currentRoomCode), {
+        await update(ref(db, 'rooms/' + currentRoomCode), {
           players: players,
           currentTurnIndex: nextTurn,
           winner: winner ? winner.name : null
         });
       } catch (err) {
-        console.error("Sync error:", err);
+        console.error("RTDB Sync error:", err);
       }
     }
 
@@ -1202,7 +1210,7 @@
     startOnlineGameBtn.addEventListener('click', hostStartOnlineGame);
 
     leaveRoomBtn.addEventListener('click', () => {
-      if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+      if (roomUnsubscribe) { roomUnsubscribe(); roomUnsubscribe = null; }
       currentRoomCode = null;
       onlineLobbyModal.classList.add('hidden');
       setupModal.classList.remove('hidden');
