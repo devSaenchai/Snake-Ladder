@@ -979,33 +979,35 @@
         status: 'playing'
       });
     }
-
+    
     function listenToRoom(code) {
-      if (roomUnsubscribe) roomUnsubscribe();
+     if (roomUnsubscribe) roomUnsubscribe();
 
-      const roomRef = ref(db, 'rooms/' + code);
-      roomUnsubscribe = onValue(roomRef, (snapshot) => {
-        if (!snapshot.exists()) return;
-        const data = snapshot.val();
-        
-        players = data.players ? (Array.isArray(data.players) ? data.players : Object.values(data.players)) : [];
-        currentTurnIndex = data.currentTurnIndex !== undefined ? data.currentTurnIndex : 0;
+  const roomRef = ref(db, 'rooms/' + code);
+  roomUnsubscribe = onValue(roomRef, (snapshot) => {
+    if (!snapshot.exists()) return;
+    const data = snapshot.val();
+    
+    // Parse players safely whether stored as an array or object dictionary
+    players = data.players ? (Array.isArray(data.players) ? data.players : Object.values(data.players)) : [];
+    currentTurnIndex = data.currentTurnIndex !== undefined ? data.currentTurnIndex : 0;
 
-        renderLobbyPlayers(players);
+    renderLobbyPlayers(players);
 
-        if (data.status === 'playing') {
-          onlineLobbyModal.classList.add('hidden');
-          setupModal.classList.add('hidden');
-          updatePlayerStatsUI();
-          resizeCanvas();
-        }
-
-        if (data.winner) {
-          winnerTitle.textContent = `${data.winner} Wins!`;
-          victoryModal.classList.remove('hidden');
-        }
-      });
+    // If game has started, hide lobbies and redraw board/stats on all devices
+    if (data.status === 'playing') {
+      onlineLobbyModal.classList.add('hidden');
+      setupModal.classList.add('hidden');
+      updatePlayerStatsUI();
+      resizeCanvas();
     }
+
+    if (data.winner) {
+      winnerTitle.textContent = `${data.winner} Wins!`;
+      victoryModal.classList.remove('hidden');
+    }
+  });
+}
 
     async function syncOnlineState(extraTurn = false) {
       if (!currentRoomCode) return;
