@@ -231,7 +231,7 @@
         <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-3">
           <div>
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Your Nickname</label>
-            <input type="text" id="onlinePlayerName" value="Player 1" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-indigo-500">
+            <input type="text" id="onlinePlayerName" value="Player" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-indigo-500">
           </div>
           <div class="pt-1 flex gap-2">
             <button id="createRoomBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition">
@@ -891,7 +891,7 @@
 
     async function joinOnlineRoom() {
       const code = joinRoomCodeInput.value.trim().toUpperCase();
-      const name = onlinePlayerNameInput.value.trim() || "Player 2";
+      const name = onlinePlayerNameInput.value.trim() || "Player";
       if (!code) { alert("Enter a valid room code"); return; }
 
       const roomRef = doc(db, "rooms", code);
@@ -912,6 +912,7 @@
         return;
       }
 
+      // CRITICAL FIX: Explicitly lock in guest's player ID based on array length
       const newId = roomData.players.length;
       myPlayerId = newId;
       currentRoomCode = code;
